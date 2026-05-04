@@ -3,43 +3,26 @@ import pandas as pd
 
 st.set_page_config(layout="wide")
 
-# 📥 cargar datos
-df = pd.read_parquet("datos_sbs.parquet")
-
 st.title("📊 Dashboard SBS - Sistema Financiero Peruano")
 
-# 🧠 normalizar columnas
-df.columns = df.columns.str.lower()
+# 🔥 DATOS MOCK (reemplaza luego por ETL real)
+data = {
+    "empresa": ["A", "A", "B", "B"],
+    "fecha": ["2024-01", "2024-02", "2024-01", "2024-02"],
+    "liquidez": [1.2, 1.3, 2.1, 2.2],
+    "credito": [3.1, 3.2, 2.9, 3.0],
+    "mercado": [0.8, 0.9, 1.1, 1.3],
+}
 
-# 🔍 filtros
-st.sidebar.header("Filtros")
+df = pd.DataFrame(data)
 
-# empresa (si existe)
-if "empresa" in df.columns:
-    empresas = st.sidebar.multiselect(
-        "Empresas",
-        df["empresa"].dropna().unique()
-    )
-    if empresas:
-        df = df[df["empresa"].isin(empresas)]
+# filtros
+empresa = st.multiselect("Empresa", df["empresa"].unique())
+if empresa:
+    df = df[df["empresa"].isin(empresa)]
 
-# mes
-if "fecha" in df.columns:
-    fecha_max = st.sidebar.selectbox(
-        "Mes máximo",
-        sorted(df["fecha"].unique())
-    )
-    df = df[df["fecha"] <= fecha_max]
+st.dataframe(df)
 
-# 📊 vista datos
-st.subheader("Vista de datos")
-st.dataframe(df.head())
-
-# 📈 gráficos automáticos
-num_cols = df.select_dtypes(include="number").columns
-
-if len(num_cols) > 0:
-    indicador = st.selectbox("Indicador", num_cols)
-    st.line_chart(df.groupby("fecha")[indicador].mean())
-else:
-    st.warning("No hay columnas numéricas para graficar")
+# gráficos
+col = st.selectbox("Indicador", ["liquidez", "credito", "mercado"])
+st.line_chart(df.groupby("fecha")[col].mean())
