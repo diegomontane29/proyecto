@@ -2,20 +2,22 @@ import pandas as pd
 import requests
 from io import BytesIO
 
-# 🔧 CONFIG (ajusta según tu cuadro SBS)
+# 🔧 CONFIG BASE (ajustable según el cuadro SBS)
 BASE_URL = "https://extranet.sbs.gob.pe/iece/descargar"
+
 PARAMS_BASE = {
     "codClasificadora": "001196",
     "numArchivo": "4",
     "numVersion": "1"
 }
 
-
+# 📅 generar últimos 60 meses
 def generar_periodos(n=60):
     fechas = pd.date_range(end=pd.Timestamp.today(), periods=n, freq="M")
     return [f"{f.year}{f.month:02d}" for f in fechas]
 
 
+# 📥 descargar un mes
 def descargar_mes(periodo):
     params = PARAMS_BASE.copy()
     params["codPeriodo"] = periodo
@@ -34,30 +36,32 @@ def descargar_mes(periodo):
         return None
 
 
-def limpiar_df(df):
+# 🧹 limpieza básica
+def limpiar(df):
     df = df.dropna(how="all")
     df.columns = df.columns.str.strip()
     return df
 
 
+# 🚀 ejecutar proceso completo
 def main():
     periodos = generar_periodos(60)
 
     dfs = []
+
     for p in periodos:
         print(f"Descargando {p}...")
         df = descargar_mes(p)
 
         if df is not None:
-            df = limpiar_df(df)
+            df = limpiar(df)
             dfs.append(df)
 
     historico = pd.concat(dfs, ignore_index=True)
 
-    # 💾 guardar
-    historico.to_parquet("data/datos_sbs.parquet")
+    historico.to_parquet("datos_sbs.parquet")
 
-    print("✅ Histórico generado")
+    print("✔ Dataset creado correctamente")
 
 
 if __name__ == "__main__":
