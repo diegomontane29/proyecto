@@ -1,83 +1,70 @@
 import streamlit as st
 import pandas as pd
-import os
 
 st.set_page_config(layout="wide")
 
-st.title("📊 SBS - Banca Múltiple (Robusto)")
+st.title("📊 SBS - Sistema Bancario Perú")
 
-FILE = "sbs_data.parquet"
+# cargar dataset consolidado
+df = pd.read_parquet("sbs_data.parquet")
 
-# -----------------------------
-# 🧠 1. CREAR DATA SI NO EXISTE
-# -----------------------------
-if not os.path.exists(FILE):
+df.columns = df.columns.str.lower().str.strip()
 
-    st.info("📦 No se encontró base de datos. Generando dataset inicial...")
-
-    data = [
-        ["Interbank", "2024-01", "Liquidez", "MN", 38.52],
-        ["Interbank", "2024-02", "Liquidez", "MN", 37.80],
-        ["BCP", "2024-01", "Liquidez", "MN", 42.10],
-        ["BBVA", "2024-01", "Liquidez", "MN", 35.20],
-
-        ["Interbank", "2024-01", "Liquidez", "ME", 12.40],
-        ["BCP", "2024-01", "Liquidez", "ME", 13.10],
-        ["BBVA", "2024-01", "Liquidez", "ME", 11.90],
-    ]
-
-    df_init = pd.DataFrame(data, columns=[
-        "banco", "fecha", "indicador", "subindicador", "valor"
-    ])
-
-    df_init.to_parquet(FILE, index=False)
-
-# -----------------------------
-# 📥 2. CARGAR DATOS
-# -----------------------------
-df = pd.read_parquet(FILE)
-
-# -----------------------------
-# 🎛 3. FILTROS
-# -----------------------------
+# -------------------------
+# FILTROS
+# -------------------------
 col1, col2, col3 = st.columns(3)
 
 with col1:
     banco = st.selectbox("Banco", sorted(df["banco"].unique()))
 
+df_b = df[df["banco"] == banco]
+
 with col2:
-    indicador = st.selectbox("Indicador", sorted(df["indicador"].unique()))
+    indicador = st.selectbox("Indicador", df_b["indicador"].unique())
+
+df_i = df_b[df_b["indicador"] == indicador]
 
 with col3:
-    sub = st.multiselect(
-        "Subindicador",
-        df["subindicador"].unique(),
-        default=df["subindicador"].unique()
-    )
+    sub = st.selectbox("Subindicador", df_i["subindicador"].unique())
 
-fecha = st.selectbox("Fecha", sorted(df["fecha"].unique()))
+df_f = df_i[df_i["subindicador"] == sub]
 
-# -----------------------------
-# 🔍 4. CONSULTA
-# -----------------------------
-df_f = df[
-    (df["banco"] == banco) &
-    (df["indicador"] == indicador) &
-    (df["subindicador"].isin(sub)) &
-    (df["fecha"] <= fecha)
-]
+# -------------------------
+# FECHA
+# -------------------------
+df_f["fecha"] = pd.to_datetime(df_f["fecha"])
 
-# -----------------------------
-# 📊 5. RESULTADOS
-# -----------------------------
+df_f = df_f.sort_values("fecha")
+
+df_f = df_f[df_f["fecha"] >= df_f["fecha"].max() - pd.DateOffset(months=60)]
+
+# -------------------------
+# GRÁFICO
+# -------------------------
+st.subheader("📈 Evolución últimos 60 meses")
+
+chart = df_f.groupby(df_f["fecha"].dt.to_period("M"))["valor"].mean()
+chart.index = chart.index.astype(str)
+
+st.line_chart(chart)
+
+# -------------------------
+# TABLA
+# -------------------------
 st.subheader("📋 Datos")
-
 st.dataframe(df_f, use_container_width=True)
 
-st.subheader("📈 Evolución")
+# -------------------------
+# DESCARGA
+# -------------------------
+st.subheader("⬇️ Descargar datos")
 
-if not df_f.empty:
-    chart = df_f.groupby("fecha")["valor"].mean()
-    st.line_chart(chart)
-else:
-    st.warning("Sin datos disponibles")
+csv = df_f.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "Descargar CSV",
+    data=csv,
+    file_name="sbs_banco.csv",
+    mime="text/csv"
+)
