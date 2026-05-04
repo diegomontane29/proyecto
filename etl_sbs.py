@@ -1,28 +1,60 @@
 import pandas as pd
+import glob
+import os
+import re
 
-# ---------------------------------------------------
-# 🔵 AQUÍ SIMULAMOS ESTRUCTURA REAL SBS (BASE LIMPIA)
-# Luego aquí conectamos descarga oficial
-# ---------------------------------------------------
+mes_map = {
+    "en": "01", "fe": "02", "mr": "03", "ab": "04",
+    "ma": "05", "jn": "06", "jl": "07", "ag": "08",
+    "se": "09", "oc": "10", "no": "11", "di": "12"
+}
 
-def generar_base_sbs():
-    data = [
-        ["Interbank", "2024-01", "Liquidez", "MN", 38.52],
-        ["Interbank", "2024-02", "Liquidez", "MN", 37.80],
-        ["BCP", "2024-01", "Liquidez", "MN", 42.10],
-        ["BBVA", "2024-01", "Liquidez", "MN", 35.20],
-        ["Interbank", "2024-01", "Liquidez", "ME", 12.40],
-        ["BCP", "2024-01", "Liquidez", "ME", 13.10],
+def parse_fecha(file):
+
+    name = os.path.basename(file).replace(".XLS", "")
+
+    match = re.search(r"([a-z]{2})(\d{4})", name)
+
+    mes = match.group(1)
+    anio = match.group(2)
+
+    return f"{anio}-{mes_map[mes]}"
+
+def build_dataset():
+
+    files = glob.glob("data_sbs/B-2340*.XLS")
+
+    dfs = []
+
+    for file in files:
+
+        df = pd.read_excel(file)
+
+        df.columns = df.columns.str.lower().str.strip()
+
+        df["fecha"] = parse_fecha(file)
+
+        dfs.append(df)
+
+    df_final = pd.concat(dfs, ignore_index=True)
+
+    df_final = df_final.rename(columns={
+        "banco": "banco",
+        "indicador": "indicador",
+        "subindicador": "subindicador",
+        "valor": "valor"
+    })
+
+    df_final = df_final[
+        ["banco", "fecha", "indicador", "subindicador", "valor"]
     ]
 
-    df = pd.DataFrame(data, columns=[
-        "banco", "fecha", "indicador", "subindicador", "valor"
-    ])
+    df_final = df_final.sort_values(["banco", "fecha"])
 
-    df.to_parquet("sbs_data.parquet", index=False)
+    df_final.to_parquet("sbs_data.parquet", index=False)
 
-    print("✔ Base SBS creada correctamente")
+    print("✔ Dataset consolidado generado")
 
 
 if __name__ == "__main__":
-    generar_base_sbs()
+    build_dataset()
