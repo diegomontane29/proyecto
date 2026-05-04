@@ -1,0 +1,11 @@
+import pandas as pd
+
+data = {
+    "empresa": ["A", "A", "B", "B"],
+    "fecha": ["202401", "202402", "202401", "202402"],
+    "liquidez": [1.2, 1.3, 2.1, 2.2],
+    "credito": [3.1, 3.2, 2.9, 3.0]
+}
+
+df = pd.DataFrame(data)
+df.to_parquet("datos_sbs.parquet")
